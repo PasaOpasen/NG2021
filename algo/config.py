@@ -1,7 +1,7 @@
 
-a_file = './A/A.csv'
-b_file = './B/B.csv'
-c_file = './F/F.csv'
+a_file = './folders/A/A.csv'
+b_file = './folders/B/B.csv'
+c_file = './folders/F/F.csv'
 
 T0 = 5*60
 
