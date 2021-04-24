@@ -1,26 +1,32 @@
 
 import numpy as np
 import pandas as pd
+import sklearn
 
-from other import time2number
+from .other import time2number, time2number_iso
 
 from GNG import create_data_graph, convert_images_to_gif, GNG
 
-from plate import Plate
+from .plate import Plate
 
-from config import  T0, c_file
+from .config import  T0, c_file
 
-def split(F):
 
-    F['time'] = [time2number(time) for time in F['Time ']]
 
-    F.sort_values(by = ['Sour IP', 'time'], inplace = True)
+
+def split(df):
+
+    F = df.copy()
+
+    F['time'] = [time2number_iso(time) for time in F['Date first seen']]
+
+    F.sort_values(by = ['Src IP Addr', 'time'], inplace = True)
 
     F.head()
 
 
 
-    Ds = [F[F['Sour IP'] == sour] for sour in pd.unique(F['Sour IP'])]
+    Ds = [F[F['Src IP Addr'] == sour] for sour in pd.unique(F['Src IP Addr'])]
 
 
     def T_setter(data):
@@ -43,27 +49,37 @@ def split(F):
 
 
 def df2XYZ(df):
-    pass
+
+    result = pd.DataFrame({
+        'X': df['Packets'],
+        'Y': df['Bytes'],
+        'Z': df['T2']
+    })
+
+    return result
 
 
 
 def algo_work(df, output_images_dir: str, output_gif: str):
 
-    data = preprocessing.normalize(df.values, axis=1, norm='l1', copy=False)
+    data = sklearn.preprocessing.normalize(df.values, axis=1, norm='l1', copy=False)
     G = create_data_graph(data)
 
-    gng = alg(data, surface_graph=G, output_images_dir=output_images_dir)
-    gng.train(max_iterations=max_iters, save_step=20)
+    gng = GNG(data, surface_graph=G, output_images_dir=output_images_dir)
+    gng.train(max_iterations=100, save_step=20)
 
     print('Saving GIF file...')
     convert_images_to_gif(output_images_dir, output_gif)
 
-    print('{}\n{}\n{}'.format(frame, 'Applying detector to the normal activity using the training set...', frame))
+    #print('{}\n{}\n{}'.format(frame, 'Applying detector to the normal activity using the training set...', frame))
     
     gng.detect_anomalies(data)
 
 
-    pl = Plate(5,1,T0 - 0)
+    XYZ = sklearn.preprocessing.normalize(np.array([[5,5,T0-15]]), axis=1, norm='l1', copy=False)[0]
+
+    pl = Plate(XYZ[0], XYZ[1], XYZ[2]) # X Y Z bounds
+
 
     nodes = [d['pos'] for d in gng._graph.nodes._nodes.values()]
 

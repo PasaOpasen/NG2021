@@ -675,11 +675,12 @@ class GNG(NeuralGas):
 
         for i in range(1, max_iterations):
             tm = time.time() - start_time
-            print(f'Training time = {round(tm, 2)} s, ' +
-                  f'Time per record = {tm / len(data)} s ' +
-                  f'Training step = {i} / {max_iterations}, Clusters count = {self.number_of_clusters}, ' +
-                  f'Neurons = {len(self._graph)}'
-                  )
+            if i % save_step == 0:
+                print(#f'Training time = {round(tm, 2)} s, ' +
+                    #f'Time per record = {tm / len(data)} s ' +
+                    f'Training step = {i} / {max_iterations}, Clusters count = {self.number_of_clusters}, ' +
+                    f'Neurons = {len(self._graph)}'
+                    )
             for x in data:
                 update_winner(x)
 
@@ -766,9 +767,11 @@ class GNG(NeuralGas):
 
     def __add_initial_nodes(self):
         """Initialize here"""
-
-        node1 = self._data[np.random.randint(0, len(self._data))]
-        node2 = self._data[np.random.randint(0, len(self._data))]
+        
+        rands = np.random.choice(np.arange(0, len(self._data)), 2, replace = False)
+        
+        node1 = self._data[rands[0]]
+        node2 = self._data[rands[1]]
 
         # make sure you don't select same positions
         if self.__class__.__is_nodes_equal(node1, node2):
