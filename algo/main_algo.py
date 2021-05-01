@@ -1,20 +1,34 @@
 
+
+import math
+
+import os
+
 import numpy as np
 import pandas as pd
 import sklearn
+
+import matplotlib.pyplot as plt
 
 from .other import time2number, time2number_iso
 
 from GNG import create_data_graph, convert_images_to_gif, GNG
 
+from plttest import draw_image, create_gng, extract_subgraphs
+
 from .plate import Plate
 
-from .config import  T0, c_file
+from .config import  T0, c_file, e_folder
 
 
 
 
 def split(df):
+    """
+    разбивает таблицу на список таблиц по айпи, отсортированных по времени
+    оставляет только таблицы с более чем 2 строками
+    и добавляет переменную T2
+    """
 
     F = df.copy()
 
@@ -38,25 +52,111 @@ def split(df):
         T[0] = np.mean(T[1:])
 
         data['T2'] = T0 - T
-        return data
+        return data[data['T2'] > 0]
 
 
     #F = pd.concat([T_setter(df) for df in Ds])
 
-    toSee = [T_setter(df.reset_index()) for df in Ds if df.shape[0] > 1]
+    toSee = [T_setter(df.reset_index()) for df in Ds if df.shape[0] > 2]  # здесь отбирает по числу соединений в одной IP
+
+    toSee = [d for d in toSee if d.shape[0] > 2]
 
     return toSee
 
 
 def df2XYZ(df):
+    """
+    достает из таблицы нужные для дальнейшего координаты
+    """
 
     result = pd.DataFrame({
-        'X': df['Packets'],
-        'Y': df['Bytes'],
-        'Z': df['T2']
+        'X': df['Bytes'],
+        'Y': df['T2']
     })
 
     return result
+
+
+def algo_work2(df, output_images_dir: str, sour: str, start_df):
+    """
+    основной алгоритм, запускает нейронный газ, рисует в случае подозрений и т п
+    """
+    
+    data = df.values # sklearn.preprocessing.normalize(df.values, axis=1, norm='l1', copy=False)
+    
+    data[:,0] = data[:,0].astype(float)
+    data[:,1] = data[:,1].astype(float)
+    
+    print(f"\n\n Source = {sour}  \n\n")
+
+    # сам нейронный газ
+    gng = create_gng(max_nodes  =   math.ceil(data.shape[0] / 3)) # здесь число узлов
+    gng.train(data, epochs = 50) # число эпох
+
+
+    pl = Plate(5*60-15, 112)
+
+    clusters = extract_subgraphs(gng.graph)
+    
+    is_out_flag = False
+
+    # проверяем, есть ли хотя бы один узел на неправильной стороне линии
+    for cluster in clusters:    
+        f = any((pl.is_out(node.weight[0][1], node.weight[0][0]) for node in cluster))
+        if f:
+            is_out_flag = True
+            break
+        
+    # если есть, рисуем
+    #if is_out_flag:
+    if True:
+
+        plt.scatter(data[:,1], data[:,0], label = 'Out points')
+
+        draw_image(gng.graph)
+        
+        clusters = len(clusters)
+
+        plt.plot([0, 5*60-15],[112, 0], '--', label = 'Line')
+
+
+        plt.xlabel('time')
+        plt.ylabel('bytes')
+
+        plt.legend()
+        plt.title(f"Source = {sour}, points = {data.shape[0]}, clusters = {clusters}")
+
+        
+        plt.savefig(output_images_dir, dpi = 200)
+        plt.show()
+
+
+        start_df.to_csv(os.path.join(e_folder,f"{sour}.csv"), index = False)
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -76,9 +176,9 @@ def algo_work(df, output_images_dir: str, output_gif: str):
     gng.detect_anomalies(data)
 
 
-    XYZ = sklearn.preprocessing.normalize(np.array([[5,5,T0-15]]), axis=1, norm='l1', copy=False)[0]
+    XYZ = sklearn.preprocessing.normalize(np.array([[5,T0-15]]), axis=1, norm='l1', copy=False)[0]
 
-    pl = Plate(XYZ[0], XYZ[1], XYZ[2]) # X Y Z bounds
+    pl = Plate(XYZ[0], XYZ[1]) # X Y Z bounds
 
 
     nodes = [d['pos'] for d in gng._graph.nodes._nodes.values()]
