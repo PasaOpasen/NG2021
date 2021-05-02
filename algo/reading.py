@@ -22,6 +22,7 @@ def AtoB(A, a_file = './A/A.csv', b_file = './B/B.csv', my_socket = None):
     A = simple_filter(A, my_socket)
     if os.path.exists(b_file):
         B = read_data(b_file)
+        B = simple_filter(B, my_socket)
         A = pd.concat([A, B], ignore_index=True).drop_duplicates()
 
     if A.shape[0] == 0:

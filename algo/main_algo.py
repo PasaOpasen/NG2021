@@ -36,9 +36,7 @@ def split(df):
 
     F.sort_values(by = ['Src IP Addr', 'time'], inplace = True)
 
-    F.head()
-
-
+    #F.head()
 
     Ds = [F[F['Src IP Addr'] == sour] for sour in pd.unique(F['Src IP Addr'])]
 
@@ -89,12 +87,17 @@ def algo_work2(df, output_images_dir: str, sour: str, start_df):
     
     print(f"\n\n Source = {sour}  \n\n")
 
+
     # сам нейронный газ
     gng = create_gng(max_nodes  =   math.ceil(data.shape[0] / 3)) # здесь число узлов
     gng.train(data, epochs = 50) # число эпох
 
 
-    pl = Plate(5*60-15, 112)
+    xmin = 5*60-15
+    ymin = 112
+
+
+    #pl = Plate(xmin, ymin)
 
     clusters = extract_subgraphs(gng.graph)
     
@@ -102,14 +105,15 @@ def algo_work2(df, output_images_dir: str, sour: str, start_df):
 
     # проверяем, есть ли хотя бы один узел на неправильной стороне линии
     for cluster in clusters:    
-        f = any((pl.is_out(node.weight[0][1], node.weight[0][0]) for node in cluster))
+        #f = any((pl.is_out(node.weight[0][1], node.weight[0][0]) for node in cluster))
+        f = any((node.weight[0][1] <=xmin and node.weight[0][0]<=ymin for node in cluster))
         if f:
             is_out_flag = True
             break
         
     # если есть, рисуем
-    #if is_out_flag:
-    if True:
+    if is_out_flag:
+    #if True:
 
         plt.scatter(data[:,1], data[:,0], label = 'Out points')
 
@@ -117,7 +121,9 @@ def algo_work2(df, output_images_dir: str, sour: str, start_df):
         
         clusters = len(clusters)
 
-        plt.plot([0, 5*60-15],[112, 0], '--', label = 'Line')
+        #plt.plot([xmin, 0],[0, ymin], '--', c = 'red')
+        plt.plot([xmin, xmin],[ 0, ymin], '--', c = 'red')
+        plt.plot([xmin, 0],[ymin, ymin], '--', c='red', label = 'Line')
 
 
         plt.xlabel('time')
@@ -125,13 +131,22 @@ def algo_work2(df, output_images_dir: str, sour: str, start_df):
 
         plt.legend()
         plt.title(f"Source = {sour}, points = {data.shape[0]}, clusters = {clusters}")
-
         
+        def center_range(arr):
+            center = (arr.max()+arr.min())/2
+            rng = (arr.max()-arr.min())*1.1
+            return [center - rng, center + rng]
+        
+        plt.xlim(center_range(data[:,1]))
+        plt.ylim(center_range(data[:,0]))
+
         plt.savefig(output_images_dir, dpi = 200)
         plt.show()
 
 
-        start_df.to_csv(os.path.join(e_folder,f"{sour}.csv"), index = False)
+
+
+        start_df.to_csv(os.path.join(e_folder, f"{sour}.csv"), index = False)
     
 
 
